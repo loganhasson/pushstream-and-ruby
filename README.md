@@ -1,12 +1,12 @@
-# Real-time data with nginx pushstream module and Ruby
+# Real-time data with the nginx Push Stream Module and Ruby
 
 In the world of real-time data, the WebSocket protocol is gaining steam as the preferred implementation. It's baked into event-driven servers like Node.js, and allows for easy bi-directional data transfer. However, there are other equally viable alternatives, such as long polling and server-sent events. Because each of these strategies has benefits in different situations, using an architecture up front that allows for seamlessly switching between them is a great way to reduce headaches down the road. An nginx server with the pushstream module fits this bill to a T. It's a robust server that can handle significant load without breaking a sweat--in fact, [Disqus](https://disqus.com/) runs its service using a relatively small architecture that [utilizes only 5 nginx pushstream servers](http://highscalability.com/blog/2014/4/28/how-disqus-went-realtime-with-165k-messages-per-second-and-l.html)--and getting one up and running isn't a huge undertaking.
 
-In this post, we'll set up an nginx pushstream server and see how we can use it as the real-time layer for a Rails application.
+In this post, we'll set up an nginx push stream server and see how we can use it as the real-time layer for a Rails application.
 
 ## Part I - What are websockets, longpolling, and server-sent events?
 
-Before we get down to brass tacks and actually set up and use an nginx pushstream server, it'll be useful to understand the differences between the three protocols it supports.
+Before we get down to brass tacks and actually set up and use an nginx push stream server, it'll be useful to understand the differences between the three protocols it supports.
 
 ### WebSocket
 
@@ -22,7 +22,7 @@ Server-Sent Events, also known as EventSource, works similarly to AJAX Long-Poll
 
 This is just a general overview of the different protocols (and others do exist, such as the peer-to-peer WebRTC). Further reading [here](https://developer.mozilla.org/en-US/docs/Server-sent_events/Using_server-sent_events), [here](http://html5doctor.com/server-sent-events/#api), [here](http://www.html5rocks.com/en/tutorials/eventsource/basics/), [here](http://jaxenter.com/tutorial-jsf-2-and-html5-server-sent-events-104548.html), [here](http://www.developerfusion.com/article/143158/an-introduction-to-websockets/), [here](http://stackoverflow.com/questions/11077857/what-are-long-polling-websockets-server-sent-events-sse-and-comet), [here](http://stackoverflow.com/questions/5195452/websockets-vs-server-sent-events-eventsource), and [here](http://stackoverflow.com/questions/10028770/html5-websocket-vs-long-polling-vs-ajax-vs-webrtc-vs-server-sent-events) (in no particular order).
 
-## Part II - Setting up an nginx server with the pushstream module
+## Part II - Setting up an nginx server with the push stream module
 
 For this section, I'm assuming you have access to a server (or virtual machine) running Ubuntu 12.04.x. These instructions should work on other versions of Ubuntu, but attempt installation on other versions at your own risk.
 
@@ -30,7 +30,7 @@ For this section, I'm assuming you have access to a server (or virtual machine) 
 
 #### Dependencies
 
-Before we can actually install pushstream, we'll need to install several dependencies. We'll do this with the apt package manager. To get the most up-to-date list of packages, run the following two commands (responding with `Y` when prompted) on your server:
+Before we can actually install push stream, we'll need to install several dependencies. We'll do this with the apt package manager. To get the most up-to-date list of packages, run the following two commands (responding with `Y` when prompted) on your server:
 
 1. `$ apt-get update`
 2. `$ apt-get upgrade`
@@ -57,13 +57,13 @@ Nginx needs to be run as a user, and for this I like to create a new user on the
 
 `$ useradd nginx --no-create-home`
 
-#### Building nginx with the pushstream module
+#### Building nginx with the push stream module
 
-Normally, we could just install nginx on an Ubuntu server using the apt package manager (`apt-get install nginx`). But in this case, we'll need to build it from source so that we can add the pushstream module. It's a little bit more involved, but not too awfully complex. First, let's make sure we're in our home directory by running:
+Normally, we could just install nginx on an Ubuntu server using the apt package manager (`apt-get install nginx`). But in this case, we'll need to build it from source so that we can add the push stream module. It's a little bit more involved, but not too awfully complex. First, let's make sure we're in our home directory by running:
 
 `$ cd`
 
-Then, we can grab the source for the pushstream  module from github with:
+Then, we can grab the source for the push stream module from GitHub with:
 
 `$ git clone https://github.com/wandenberg/nginx-push-stream-module.git`
 
@@ -83,7 +83,7 @@ And move into the source directory:
 
 `$ cd nginx-1.2.5`
 
-And configure the build to use the pushstream module:
+And configure the build to use the push stream module:
 
 `$ ./configure --add-module=../nginx-push-stream-module`
 
@@ -101,7 +101,7 @@ The configure and make steps will take a little while. But once it's all done, w
 
 If all's well, you should see something like: `nginx version: nginx/1.2.5`.
 
-Next, we need to check the pushstream configuration file to make sure it's all good to go:
+Next, we need to check the push stream configuration file to make sure it's all good to go:
 
 `$ /usr/local/nginx/sbin/nginx -c $NGINX_PUSH_STREAM_MODULE_PATH/misc/nginx.conf -t`
 
@@ -112,7 +112,7 @@ nginx: the configuration file /root/$NGINX_PUSH_STREAM_MODULE_PATH/misc/nginx.co
 nginx: configuration file #NGINX_PUSH_STREAM_MODULE_PATH/misc/nginx/conf test is successful
 ```
 
-Finally, we can use our handy environment variable to move the configuration file into place (right now, it's in the pustream repo we downloaded, but we'd like it in a more useful place on our system):
+Finally, we can use our handy environment variable to move the configuration file into place (right now, it's in the push stream repo we downloaded, but we'd like it in a more useful place on our system):
 
 `$ cp $NGINX_PUSH_STREAM_MODULE_PATH/misc/nginx.conf /usr/local/nginx/conf/nginx.conf`
 
@@ -161,17 +161,17 @@ As a last step, let's get rid of all of the files we downloaded:
 
 `$ rm -rf ~/nginx-1.2.5 && rm ~/nginx-1.2.5.tar.gz && rm -rf ~/nginx-push-stream-module`
 
-And that's it! Now we have an nginx pushstream server set up. Let's put it to some use now!
+And that's it! Now we have an nginx push stream server set up. Let's put it to some use now!
 
 ## Part III - Client-side only
 
-Before we jump into doing anything server-side with a Rails application, let's work on the JavaScript side of things. For this example, we'll use websockets. You'll need two libraries: [jQuery](http://jquery.com) and [Pushstream.js](https://github.com/wandenberg/nginx-push-stream-module/blob/master/misc/js/pushstream.js).
+Before we jump into doing anything server-side with a Rails application, let's work on the JavaScript side of things. For this example, we'll use websockets. You'll need two libraries: [jQuery](http://jquery.com) and [pushstream.js](https://github.com/wandenberg/nginx-push-stream-module/blob/master/misc/js/pushstream.js).
 
 Also, take note of your server's IP Address (you can get it by running `ifconfig`).
 
 ### The Project Directory
 
-Go ahead and create a directory and move both of the above JavaScript libararies into it. Then, create an html file called `index.html` and a JavaScript file called `chat.js`.
+Go ahead and create a directory and move both of the above JavaScript libraries into it. Then, create an html file called `index.html` and a JavaScript file called `chat.js`.
 
 ### The HTML
 
@@ -197,11 +197,11 @@ I'm going to assume you have a directory structure that has one html file in the
 
 ### The JavaScript
 
-Ok, now comes the fun part. Let's actually get the pushstream up and running. Open your `chat.js` file and add the following code (comments explain what's going on):
+Ok, now comes the fun part. Let's actually get push stream up and running. Open your `chat.js` file and add the following code (comments explain what's going on):
 
 ```javascript
 $(function(){
-  // Initialize the pushstream connection with the correct IP Address, on the default port of 9080, and with websockets
+  // Initialize the push stream connection with the correct IP Address, on the default port of 9080, and with websockets
   var pushstream = new PushStream({
     host: 'YOUR_IP_ADDRESS_HERE',
     port: 9080,
@@ -239,11 +239,11 @@ Open `index.html` in your browser, and send away! When you enter text in the inp
 
 ## Part IV - Rails/Server-Side
 
-Instead of building an entire Rails application, we'll create a PORO that can easily be dropped into an existing Rails application and used to send events to the pushstream server. This library code can then be dropped into a Sinatra application, or used as a standalone Ruby executable.
+Instead of building an entire Rails application, we'll create a PORO that can easily be dropped into an existing Rails application and used to send events to the push stream server. This library code can then be dropped into a Sinatra application, or used as a standalone Ruby executable.
 
 ### Server-Sent Events
 
-Just to demonstrate the flexibility of the pushstream module, let's modify our JavaScript slightly and add 'eventsource' as a connection mode. To do this, change the line `modes: 'websocket'` to `modes: 'websocket|eventsource'`. Also, go ahead and grab the lovely [jquery-deparam](https://github.com/chrissrogers/jquery-deparam) plugin from [Christopher Rogers](https://github.com/chrissrogers). It'll allow us to send more useful data as HTTP params, rather than as just text, and easily deal with it on the client side. Put it in the same directory as your other files, and add it to the head of your HTML file: `<script src="jquery-deparm.js" type="text/javascript"></script>`. Just make sure to add it after you've included jQuery!
+Just to demonstrate the flexibility of the push stream module, let's modify our JavaScript slightly and add 'eventsource' as a connection mode. To do this, change the line `modes: 'websocket'` to `modes: 'websocket|eventsource'`. Also, go ahead and grab the lovely [jquery-deparam](https://github.com/chrissrogers/jquery-deparam) plugin from [Christopher Rogers](https://github.com/chrissrogers). It'll allow us to send more useful data as HTTP params, rather than as just text, and easily deal with it on the client side. Put it in the same directory as your other files, and add it to the head of your HTML file: `<script src="jquery-deparm.js" type="text/javascript"></script>`. Just make sure to add it after you've included jQuery!
 
 And now, for the Ruby side of things. To handle sending the events, we'll use the [Faraday](https://github.com/lostisland/faraday) gem. It's a great, flexible HTTP client library. You are free to use another one, but you'll have to alter the example code.
 
@@ -289,19 +289,19 @@ module Pushstream
     def self.publish(channel_name, data, conn = FaradayAdapter.new("http://#{ENV['NGINX_IP']}:9080"))
       # Use the constructor pattern to initialize a new Pushstream::Publisher, and call the publish method with a channel
       # and some data. You'll notice, this also expects an environment variable to be set with the IP Address of our
-      # nginx pushstream server
+      # nginx push stream server
       new(conn).publish(channel_name, data)
     end
 
     def publish(channel_name, data)
-      # This follows the default pushstream behavior. The publish path looks like "http://someaddress:9080/pub?id=channel_name"
+      # This follows the default push stream behavior. The publish path looks like "http://someaddress:9080/pub?id=channel_name"
       conn.post 'pub', "id=#{channel_name}", data
     end
   end
 end
 ```
 
-Before we use this, let's eplore that default pushstream publish path briefly. Earlier when we set up our pushtream server, we moved a default config file into place, and told nginx to use it when it runs. That file does a whole bunch of things (including defining what types of connections to support), perhaps the most important of which is to define the publish and subscribe paths for the server. Here are the relevant lines from that config file:
+Before we use this, let's eplore that default push stream publish path briefly. Earlier when we set up our push stream server, we moved a default config file into place, and told nginx to use it when it runs. That file does a whole bunch of things (including defining what types of connections to support), perhaps the most important of which is to define the publish and subscribe paths for the server. Here are the relevant lines from that config file:
 
 ```bash
 location /pub {
@@ -357,7 +357,7 @@ It will output some headers and then sit and wait. Now in the other window, run:
 
 `curl -s -v -X POST 'http://NGINX_SERVER_IP_ADDRESS_HERE:9080/pub?id=test_channel_1' -d 'Hello World!'`
 
-After a short period of time (perhaps even almost instantly), you'll see a message pop up in the first window. There will be some script tags, but somewhere in the response, you'll see 'Hello World!'. This post request is exactly what our Ruby code is doing, while the client side is handling the `/sub` endpoint using the `Pushstream.js` library.
+After a short period of time (perhaps even almost instantly), you'll see a message pop up in the first window. There will be some script tags, but somewhere in the response, you'll see 'Hello World!'. This post request is exactly what our Ruby code is doing, while the client side is handling the `/sub` endpoint using the `pushstream.js` library.
 
 And now, finally, let's put our Ruby code to the test! Pop open an irb session (run `irb` in your terminal) from within your current working directory, and type:
 
@@ -399,4 +399,4 @@ You should see that pop up in your browser looking something like: **rando**: he
 
 And that's all there is to it! You can drop those Ruby classes we wrote into any Rails application, and trigger the `.publish` method anytime something of interest happens on the server. Any client that is connected to the published-to channel will receive the data.
 
-You can grab the sample code from this post from my [pushstream-and-ruby repo on GitHub](http://github.com/loganhasson/pushstream-and-ruby). And for further reading, head over to the [nginx pushstream](http://wiki.nginx.org/HttpPushStreamModule) documentation.
+You can grab the sample code from this post from my [pushstream-and-ruby repo on GitHub](http://github.com/loganhasson/pushstream-and-ruby). And for further reading, head over to the [nginx pushstream](http://wiki.nginx.org/HttpPushStreamModule) documentation or read the [source code on GitHub](https://github.com/wandenberg/nginx-push-stream-module).
