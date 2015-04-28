@@ -19,7 +19,7 @@ $(function(){
   function updateChatLog(text, id, channel) {
     // Use the jquery-deparam plugin to parse our incoming text into an object we can use more easily
     var data = $.deparam(text);
-    
+
     // Append the data to the div we created
     $('#chat-messages ul').append('<li><strong>' + data.username + '</strong>: ' + data.text + '</li>');
   }
